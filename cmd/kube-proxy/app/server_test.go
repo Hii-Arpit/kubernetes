@@ -36,7 +36,7 @@ import (
 	componentbaseconfig "k8s.io/component-base/config"
 	logsapi "k8s.io/component-base/logs/api/v1"
 	kubeproxyconfig "k8s.io/kubernetes/pkg/proxy/apis/config"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // TestLoadConfig tests proper operation of loadConfig()
@@ -195,8 +195,8 @@ nodePortAddresses:
 			ClusterCIDR:      tc.clusterCIDR,
 			ConfigSyncPeriod: metav1.Duration{Duration: 15 * time.Second},
 			Conntrack: kubeproxyconfig.KubeProxyConntrackConfiguration{
-				MaxPerCore:            pointer.Int32(2),
-				Min:                   pointer.Int32(1),
+				MaxPerCore:            ptr.To[int32](2),
+				Min:                   ptr.To[int32](1),
 				TCPCloseWaitTimeout:   &metav1.Duration{Duration: 10 * time.Second},
 				TCPEstablishedTimeout: &metav1.Duration{Duration: 20 * time.Second},
 			},
@@ -205,8 +205,8 @@ nodePortAddresses:
 			HostnameOverride:   "foo",
 			IPTables: kubeproxyconfig.KubeProxyIPTablesConfiguration{
 				MasqueradeAll:      true,
-				MasqueradeBit:      pointer.Int32(17),
-				LocalhostNodePorts: pointer.Bool(true),
+				MasqueradeBit:      ptr.To[int32](17),
+				LocalhostNodePorts: ptr.To(true),
 				MinSyncPeriod:      metav1.Duration{Duration: 10 * time.Second},
 				SyncPeriod:         metav1.Duration{Duration: 60 * time.Second},
 			},
@@ -217,7 +217,7 @@ nodePortAddresses:
 			},
 			MetricsBindAddress: tc.metricsBindAddress,
 			Mode:               kubeproxyconfig.ProxyMode(tc.mode),
-			OOMScoreAdj:        pointer.Int32(17),
+			OOMScoreAdj:        ptr.To[int32](17),
 			PortRange:          "2-7",
 			NodePortAddresses:  []string{"10.20.30.40/16", "fd00:1::0/64"},
 			DetectLocalMode:    kubeproxyconfig.LocalModeClusterCIDR,
@@ -634,30 +634,30 @@ func Test_detectNodeIPs(t *testing.T) {
 	}{
 		{
 			name:           "Bind address IPv4 unicast address and no Node object",
-			nodeInfo:       makeNodeWithAddresses("", "", ""),
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "", ""),
 			hostname:       "fakeHost",
 			bindAddress:    "10.0.0.1",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "10.0.0.1",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		{
 			name:           "Bind address IPv6 unicast address and no Node object",
-			nodeInfo:       makeNodeWithAddresses("", "", ""),
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "", ""),
 			hostname:       "fakeHost",
 			bindAddress:    "fd00:4321::2",
 			expectedFamily: v1.IPv6Protocol,
-			expectedIPv4:   "0.0.0.0",
+			expectedIPv4:   "127.0.0.1",
 			expectedIPv6:   "fd00:4321::2",
 		},
 		{
 			name:           "No Valid IP found",
-			nodeInfo:       makeNodeWithAddresses("", "", ""),
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "", ""),
 			hostname:       "fakeHost",
 			bindAddress:    "",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "127.0.0.1",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		// Disabled because the GetNodeIP method has a backoff retry mechanism
 		// and the test takes more than 30 seconds
@@ -678,7 +678,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			bindAddress:    "0.0.0.0",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "192.168.1.1",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		{
 			name:           "Bind address :: and node with IPv4 InternalIP set",
@@ -687,7 +687,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			bindAddress:    "::",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "192.168.1.1",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		{
 			name:           "Bind address 0.0.0.0 and node with IPv6 InternalIP set",
@@ -695,7 +695,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			hostname:       "fakeHost",
 			bindAddress:    "0.0.0.0",
 			expectedFamily: v1.IPv6Protocol,
-			expectedIPv4:   "0.0.0.0",
+			expectedIPv4:   "127.0.0.1",
 			expectedIPv6:   "fd00:1234::1",
 		},
 		{
@@ -704,7 +704,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			hostname:       "fakeHost",
 			bindAddress:    "::",
 			expectedFamily: v1.IPv6Protocol,
-			expectedIPv4:   "0.0.0.0",
+			expectedIPv4:   "127.0.0.1",
 			expectedIPv6:   "fd00:1234::1",
 		},
 		{
@@ -714,7 +714,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			bindAddress:    "0.0.0.0",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "90.90.90.90",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		{
 			name:           "Bind address :: and node with only IPv4 ExternalIP set",
@@ -723,7 +723,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			bindAddress:    "::",
 			expectedFamily: v1.IPv4Protocol,
 			expectedIPv4:   "90.90.90.90",
-			expectedIPv6:   "::",
+			expectedIPv6:   "::1",
 		},
 		{
 			name:           "Bind address 0.0.0.0 and node with only IPv6 ExternalIP set",
@@ -731,7 +731,7 @@ func Test_detectNodeIPs(t *testing.T) {
 			hostname:       "fakeHost",
 			bindAddress:    "0.0.0.0",
 			expectedFamily: v1.IPv6Protocol,
-			expectedIPv4:   "0.0.0.0",
+			expectedIPv4:   "127.0.0.1",
 			expectedIPv6:   "2001:db8::2",
 		},
 		{
@@ -740,8 +740,62 @@ func Test_detectNodeIPs(t *testing.T) {
 			hostname:       "fakeHost",
 			bindAddress:    "::",
 			expectedFamily: v1.IPv6Protocol,
-			expectedIPv4:   "0.0.0.0",
+			expectedIPv4:   "127.0.0.1",
 			expectedIPv6:   "2001:db8::2",
+		},
+		{
+			name:           "Dual stack, primary IPv4",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "90.90.90.90", "2001:db8::2"),
+			hostname:       "fakeHost",
+			bindAddress:    "::",
+			expectedFamily: v1.IPv4Protocol,
+			expectedIPv4:   "90.90.90.90",
+			expectedIPv6:   "2001:db8::2",
+		},
+		{
+			name:           "Dual stack, primary IPv6",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "2001:db8::2", "90.90.90.90"),
+			hostname:       "fakeHost",
+			bindAddress:    "0.0.0.0",
+			expectedFamily: v1.IPv6Protocol,
+			expectedIPv4:   "90.90.90.90",
+			expectedIPv6:   "2001:db8::2",
+		},
+		{
+			name:           "Dual stack, override IPv4",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "2001:db8::2", "90.90.90.90"),
+			hostname:       "fakeHost",
+			bindAddress:    "80.80.80.80",
+			expectedFamily: v1.IPv4Protocol,
+			expectedIPv4:   "80.80.80.80",
+			expectedIPv6:   "2001:db8::2",
+		},
+		{
+			name:           "Dual stack, override IPv6",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "90.90.90.90", "2001:db8::2"),
+			hostname:       "fakeHost",
+			bindAddress:    "2001:db8::555",
+			expectedFamily: v1.IPv6Protocol,
+			expectedIPv4:   "90.90.90.90",
+			expectedIPv6:   "2001:db8::555",
+		},
+		{
+			name:           "Dual stack, override primary family, IPv4",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "2001:db8::2", "90.90.90.90"),
+			hostname:       "fakeHost",
+			bindAddress:    "127.0.0.1",
+			expectedFamily: v1.IPv4Protocol,
+			expectedIPv4:   "127.0.0.1",
+			expectedIPv6:   "2001:db8::2",
+		},
+		{
+			name:           "Dual stack, override primary family, IPv6",
+			nodeInfo:       makeNodeWithAddresses("fakeHost", "90.90.90.90", "2001:db8::2"),
+			hostname:       "fakeHost",
+			bindAddress:    "::1",
+			expectedFamily: v1.IPv6Protocol,
+			expectedIPv4:   "90.90.90.90",
+			expectedIPv6:   "::1",
 		},
 	}
 	for _, c := range cases {
@@ -763,11 +817,12 @@ func Test_detectNodeIPs(t *testing.T) {
 
 func Test_checkIPConfig(t *testing.T) {
 	cases := []struct {
-		name  string
-		proxy *ProxyServer
-		ssErr bool
-		dsErr bool
-		fatal bool
+		name    string
+		proxy   *ProxyServer
+		ssErr   bool
+		ssFatal bool
+		dsErr   bool
+		dsFatal bool
 	}{
 		{
 			name: "empty config",
@@ -820,9 +875,10 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv4Protocol,
 			},
-			ssErr: true,
-			dsErr: true,
-			fatal: false,
+			ssErr:   true,
+			ssFatal: false,
+			dsErr:   true,
+			dsFatal: false,
 		},
 		{
 			name: "wrong-family clusterCIDR when using ClusterCIDR LocalDetector",
@@ -833,9 +889,10 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv4Protocol,
 			},
-			ssErr: true,
-			dsErr: true,
-			fatal: true,
+			ssErr:   true,
+			ssFatal: true,
+			dsErr:   true,
+			dsFatal: false,
 		},
 
 		{
@@ -879,9 +936,10 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv6Protocol,
 			},
-			ssErr: true,
-			dsErr: true,
-			fatal: false,
+			ssErr:   true,
+			ssFatal: false,
+			dsErr:   true,
+			dsFatal: false,
 		},
 
 		{
@@ -929,9 +987,10 @@ func Test_checkIPConfig(t *testing.T) {
 				PrimaryIPFamily: v1.IPv4Protocol,
 				podCIDRs:        []string{"fd01:2345::/64"},
 			},
-			ssErr: true,
-			dsErr: true,
-			fatal: true,
+			ssErr:   true,
+			ssFatal: true,
+			dsErr:   true,
+			dsFatal: true,
 		},
 
 		{
@@ -957,9 +1016,10 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv4Protocol,
 			},
-			ssErr: true,
-			dsErr: true,
-			fatal: false,
+			ssErr:   true,
+			ssFatal: false,
+			dsErr:   true,
+			dsFatal: false,
 		},
 
 		{
@@ -1003,9 +1063,9 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv6Protocol,
 			},
-			ssErr: true,
-			dsErr: false,
-			fatal: false,
+			ssErr:   true,
+			ssFatal: false,
+			dsErr:   false,
 		},
 
 		{
@@ -1031,9 +1091,9 @@ func Test_checkIPConfig(t *testing.T) {
 				},
 				PrimaryIPFamily: v1.IPv6Protocol,
 			},
-			ssErr: true,
-			dsErr: false,
-			fatal: false,
+			ssErr:   true,
+			ssFatal: false,
+			dsErr:   false,
 		},
 	}
 
@@ -1044,8 +1104,8 @@ func Test_checkIPConfig(t *testing.T) {
 				t.Errorf("unexpected error in single-stack case: %v", err)
 			} else if err == nil && c.ssErr {
 				t.Errorf("unexpected lack of error in single-stack case")
-			} else if fatal != c.fatal {
-				t.Errorf("expected fatal=%v, got %v", c.fatal, fatal)
+			} else if fatal != c.ssFatal {
+				t.Errorf("expected fatal=%v, got %v", c.ssFatal, fatal)
 			}
 
 			err, fatal = checkIPConfig(c.proxy, true)
@@ -1053,8 +1113,8 @@ func Test_checkIPConfig(t *testing.T) {
 				t.Errorf("unexpected error in dual-stack case: %v", err)
 			} else if err == nil && c.dsErr {
 				t.Errorf("unexpected lack of error in dual-stack case")
-			} else if fatal != c.fatal {
-				t.Errorf("expected fatal=%v, got %v", c.fatal, fatal)
+			} else if fatal != c.dsFatal {
+				t.Errorf("expected fatal=%v, got %v", c.dsFatal, fatal)
 			}
 		})
 	}

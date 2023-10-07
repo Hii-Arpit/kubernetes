@@ -39,6 +39,10 @@ type InitConfiguration struct {
 	// +optional
 	BootstrapTokens []bootstraptokenv1.BootstrapToken `json:"bootstrapTokens,omitempty"`
 
+	// DryRun tells if the dry run mode is enabled, don't apply any change if it is and just output what would be done.
+	// +optional
+	DryRun bool `json:"dryRun,omitempty"`
+
 	// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster
 	// +optional
 	NodeRegistration NodeRegistrationOptions `json:"nodeRegistration,omitempty"`
@@ -54,6 +58,7 @@ type InitConfiguration struct {
 
 	// CertificateKey sets the key with which certificates and keys are encrypted prior to being uploaded in
 	// a secret in the cluster during the uploadcerts init phase.
+	// The certificate key is a hex encoded string that is an AES key of size 32 bytes.
 	// +optional
 	CertificateKey string `json:"certificateKey,omitempty"`
 
@@ -135,17 +140,21 @@ type ClusterConfiguration struct {
 	// The cluster name
 	// +optional
 	ClusterName string `json:"clusterName,omitempty"`
+
+	// EncryptionAlgorithm holds the type of asymmetric encryption algorithm used for keys and certificates.
+	// Can be "RSA" (default algorithm, key size is 2048) or "ECDSA" (uses the P-256 eliptic curve).
+	// +optional
+	EncryptionAlgorithm EncryptionAlgorithmType `json:"encryptionAlgorithm,omitempty"`
 }
 
 // ControlPlaneComponent holds settings common to control plane component of the cluster
 type ControlPlaneComponent struct {
 	// ExtraArgs is an extra set of flags to pass to the control plane component.
-	// A key in this map is the flag name as it appears on the
-	// command line except without leading dash(es).
-	// TODO: This is temporary and ideally we would like to switch all components to
-	// use ComponentConfig + ConfigMaps.
+	// An argument name in this list is the flag name as it appears on the
+	// command line except without leading dash(es). Extra arguments will override existing
+	// default arguments. Duplicate extra arguments are allowed.
 	// +optional
-	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty"`
 
 	// ExtraVolumes is an extra set of host volumes, mounted to the control plane component.
 	// +optional
@@ -154,7 +163,7 @@ type ControlPlaneComponent struct {
 	// ExtraEnvs is an extra set of environment variables to pass to the control plane component.
 	// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
 	// +optional
-	ExtraEnvs []corev1.EnvVar `json:"extraEnvs,omitempty"`
+	ExtraEnvs []EnvVar `json:"extraEnvs,omitempty"`
 }
 
 // APIServer holds settings necessary for API server deployments in the cluster
@@ -228,10 +237,10 @@ type NodeRegistrationOptions struct {
 	// KubeletExtraArgs passes through extra arguments to the kubelet. The arguments here are passed to the kubelet command line via the environment file
 	// kubeadm writes at runtime for the kubelet to source. This overrides the generic base-level configuration in the kubelet-config ConfigMap
 	// Flags have higher priority when parsing. These values are local and specific to the node kubeadm is executing on.
-	// A key in this map is the flag name as it appears on the
-	// command line except without leading dash(es).
+	// An argument name in this list is the flag name as it appears on the command line except without leading dash(es).
+	// Extra arguments will override existing default arguments. Duplicate extra arguments are allowed.
 	// +optional
-	KubeletExtraArgs map[string]string `json:"kubeletExtraArgs,omitempty"`
+	KubeletExtraArgs []Arg `json:"kubeletExtraArgs,omitempty"`
 
 	// IgnorePreflightErrors provides a slice of pre-flight errors to be ignored when the current node is registered, e.g. 'IsPrivilegedUser,Swap'.
 	// Value 'all' ignores errors from all checks.
@@ -283,15 +292,16 @@ type LocalEtcd struct {
 
 	// ExtraArgs are extra arguments provided to the etcd binary
 	// when run inside a static pod.
-	// A key in this map is the flag name as it appears on the
-	// command line except without leading dash(es).
+	// An argument name in this list is the flag name as it appears on the
+	// command line except without leading dash(es). Extra arguments will override existing
+	// default arguments. Duplicate extra arguments are allowed.
 	// +optional
-	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
+	ExtraArgs []Arg `json:"extraArgs,omitempty"`
 
 	// ExtraEnvs is an extra set of environment variables to pass to the control plane component.
 	// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
 	// +optional
-	ExtraEnvs []corev1.EnvVar `json:"extraEnvs,omitempty"`
+	ExtraEnvs []EnvVar `json:"extraEnvs,omitempty"`
 
 	// ServerCertSANs sets extra Subject Alternative Names for the etcd server signing cert.
 	// +optional
@@ -325,6 +335,10 @@ type ExternalEtcd struct {
 // JoinConfiguration contains elements describing a particular node.
 type JoinConfiguration struct {
 	metav1.TypeMeta `json:",inline"`
+
+	// DryRun tells if the dry run mode is enabled, don't apply any change if it is and just output what would be done.
+	// +optional
+	DryRun bool `json:"dryRun,omitempty"`
 
 	// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster
 	// +optional
@@ -364,6 +378,7 @@ type JoinControlPlane struct {
 
 	// CertificateKey is the key that is used for decryption of certificates after they are downloaded from the secret
 	// upon joining a new control plane node. The corresponding encryption key is in the InitConfiguration.
+	// The certificate key is a hex encoded string that is an AES key of size 32 bytes.
 	// +optional
 	CertificateKey string `json:"certificateKey,omitempty"`
 }
@@ -492,3 +507,24 @@ type ResetConfiguration struct {
 	// +optional
 	SkipPhases []string `json:"skipPhases,omitempty"`
 }
+
+// Arg represents an argument with a name and a value.
+type Arg struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// EnvVar represents an environment variable present in a Container.
+type EnvVar struct {
+	corev1.EnvVar `json:",inline"`
+}
+
+// EncryptionAlgorithmType can define an asymmetric encryption algorithm type.
+type EncryptionAlgorithmType string
+
+const (
+	// EncryptionAlgorithmECDSA defines the ECDSA encryption algorithm type.
+	EncryptionAlgorithmECDSA EncryptionAlgorithmType = "ECDSA"
+	// EncryptionAlgorithmRSA defines the RSA encryption algorithm type.
+	EncryptionAlgorithmRSA EncryptionAlgorithmType = "RSA"
+)

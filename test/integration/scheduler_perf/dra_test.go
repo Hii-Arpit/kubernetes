@@ -210,13 +210,13 @@ func (op *createResourceDriverOp) run(ctx context.Context, tb testing.TB, client
 		}
 	}
 
-	controller := draapp.NewController(clientset, "test-driver.cdi.k8s.io", resources)
+	controller := draapp.NewController(clientset, op.DriverName, resources)
 	ctx, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ctx := klog.NewContext(ctx, klog.LoggerWithName(klog.FromContext(ctx), "DRA test driver"))
+		ctx := klog.NewContext(ctx, klog.LoggerWithName(klog.FromContext(ctx), op.DriverName))
 		controller.Run(ctx, 5 /* workers */)
 	}()
 	tb.Cleanup(func() {

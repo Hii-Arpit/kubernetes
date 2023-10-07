@@ -133,8 +133,10 @@ func newCmdConfigPrintActionDefaults(out io.Writer, action string, configBytesPr
 		},
 		Args: cobra.NoArgs,
 	}
-	cmd.Flags().StringSliceVar(&kinds, "component-configs", kinds,
-		fmt.Sprintf("A comma-separated list for component config API objects to print the default values for. Available values: %v. If this flag is not set, no component configs will be printed.", getSupportedComponentConfigKinds()))
+	if action == "init" {
+		cmd.Flags().StringSliceVar(&kinds, "component-configs", kinds,
+			fmt.Sprintf("A comma-separated list for component config API objects to print the default values for. Available values: %v. If this flag is not set, no component configs will be printed.", getSupportedComponentConfigKinds()))
+	}
 	return cmd
 }
 
@@ -221,7 +223,7 @@ func getDefaultNodeConfigBytes() ([]byte, error) {
 		NodeRegistration: kubeadmapiv1old.NodeRegistrationOptions{
 			CRISocket: constants.DefaultCRISocket, // avoid CRI detection
 		},
-	})
+	}, true /* skipCRIDetect */)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -232,7 +234,7 @@ func getDefaultNodeConfigBytes() ([]byte, error) {
 func getDefaultResetConfigBytes() ([]byte, error) {
 	internalcfg, err := configutil.DefaultedResetConfiguration(&kubeadmapiv1.ResetConfiguration{
 		CRISocket: constants.DefaultCRISocket, // avoid CRI detection
-	})
+	}, true /* skipCRIDetect */)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -365,7 +367,7 @@ func newCmdConfigImagesPull() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			internalcfg, err := configutil.LoadOrDefaultInitConfiguration(cfgPath, externalInitCfg, externalClusterCfg)
+			internalcfg, err := configutil.LoadOrDefaultInitConfiguration(cfgPath, externalInitCfg, externalClusterCfg, false)
 			if err != nil {
 				return err
 			}
@@ -440,7 +442,7 @@ func newCmdConfigImagesList(out io.Writer, mockK8sVersion *string) *cobra.Comman
 
 // NewImagesList returns the underlying struct for the "kubeadm config images list" command
 func NewImagesList(cfgPath string, cfg *kubeadmapiv1old.ClusterConfiguration) (*ImagesList, error) {
-	initcfg, err := configutil.LoadOrDefaultInitConfiguration(cfgPath, cmdutil.DefaultInitConfiguration(), cfg)
+	initcfg, err := configutil.LoadOrDefaultInitConfiguration(cfgPath, cmdutil.DefaultInitConfiguration(), cfg, true /* skipCRIDetect */)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not convert cfg to an internal cfg")
 	}

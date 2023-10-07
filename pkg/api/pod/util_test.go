@@ -585,8 +585,8 @@ func TestDropFSGroupFields(t *testing.T) {
 					t.Errorf("for %s, expected fsGroupChangepolicy found none", podInfo.description)
 				}
 			} else {
-				secConext := newPod.Spec.SecurityContext
-				if secConext != nil && secConext.FSGroupChangePolicy != nil {
+				secContext := newPod.Spec.SecurityContext
+				if secContext != nil && secContext.FSGroupChangePolicy != nil {
 					t.Errorf("for %s, unexpected fsGroupChangepolicy set", podInfo.description)
 				}
 			}
@@ -1886,44 +1886,6 @@ func TestValidateTopologySpreadConstraintLabelSelectorOption(t *testing.T) {
 				t.Errorf("Got AllowInvalidLabelValueInSelector=%t, want %t", gotOptions.AllowInvalidTopologySpreadConstraintLabelSelector, tc.wantOption)
 			}
 		})
-	}
-}
-
-func TestDropVolumesClaimField(t *testing.T) {
-	pod := &api.Pod{
-		Spec: api.PodSpec{
-			Volumes: []api.Volume{
-				{},
-				{
-					VolumeSource: api.VolumeSource{
-						Ephemeral: &api.EphemeralVolumeSource{},
-					},
-				},
-				{
-					VolumeSource: api.VolumeSource{
-						Ephemeral: &api.EphemeralVolumeSource{
-							VolumeClaimTemplate: &api.PersistentVolumeClaimTemplate{
-								Spec: api.PersistentVolumeClaimSpec{
-									Resources: api.ResourceRequirements{
-										Claims: []api.ResourceClaim{
-											{Name: "dra"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	DropDisabledPodFields(pod, nil)
-
-	for i, volume := range pod.Spec.Volumes {
-		if volume.Ephemeral != nil && volume.Ephemeral.VolumeClaimTemplate != nil && volume.Ephemeral.VolumeClaimTemplate.Spec.Resources.Claims != nil {
-			t.Errorf("volume #%d: Resources.Claim should be nil", i)
-		}
 	}
 }
 
